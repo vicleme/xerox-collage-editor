@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colagem Xerox — Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Caveat:wght@500;700&family=Permanent+Marker&family=Patrick+Hand&family=Shantell+Sans:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+
+  <aside class="panel">
+    <div class="brandRow">
+      <svg width="30" height="30" viewBox="0 0 40 40" style="flex:none;">
+        <rect x="1" y="1" width="38" height="38" rx="6" fill="#ff5a1f"/>
+        <polygon points="8,10 32,7 34,20 30,32 10,31 6,18" fill="#fdf8ef" stroke="#161311" stroke-width="1.6"/>
+        <path d="M11,14 L29,26 M29,14 L11,26" stroke="#1fb8b0" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+      <p class="brand">colagem<span>xerox</span></p>
+    </div>
+    <p class="sub">recorte de papel · hachura p&amp;b · franja cromática</p>
+
+    <div class="section">
+      <h3>00 · Tamanho da tela</h3>
+      <div class="preset-grid" id="sizePresetGrid"></div>
+      <div class="customSizeRow">
+        <input type="number" id="customW" value="1080" min="200" max="3000">
+        <span>×</span>
+        <input type="number" id="customH" value="1350" min="200" max="3000">
+        <button class="btn secondary small" id="applyCustomSize" style="margin:0;">aplicar</button>
+      </div>
+      <p class="microhelp">o tamanho vale para todas as folhas do carrossel.</p>
+    </div>
+
+    <div class="section">
+      <h3>01 · Fotos desta folha</h3>
+      <button class="uploadBtn" id="uploadTrigger">+ enviar foto</button>
+      <input type="file" id="fileInput" accept="image/*,.heic,.heif,image/heic,image/heif">
+      <p class="microhelp">cada envio adiciona uma foto nova nesta folha. clique numa foto na lista abaixo pra selecioná-la e ajustá-la.</p>
+      <div class="stickerList" id="photoList"></div>
+
+      <div id="cutoutControls">
+        <div class="row2" style="margin-top:8px;">
+          <button class="btn secondary small" id="reseedShapeBtn">↻ novo recorte</button>
+          <button class="btn secondary small" id="centerPhotoBtn">◎ centralizar quadro</button>
+        </div>
+        <label class="field" style="margin-top:14px;">Formato do recorte</label>
+        <div class="row2">
+          <button class="btn secondary small toggle active" id="cutoutModeFrameBtn">◻ moldura</button>
+          <button class="btn secondary small toggle" id="cutoutModeAlphaBtn">✦ transparência</button>
+        </div>
+        <p class="microhelp">"moldura" mantém o recorte retangular serrilhado. "transparência" usa a área opaca do PNG para formar a silhueta e o contorno.</p>
+        <label class="field" style="margin-top:14px;">Mover no arraste</label>
+        <div class="row2">
+          <button class="btn secondary small toggle active" id="modeFrameBtn">◻ mover quadro</button>
+          <button class="btn secondary small toggle" id="modeContentBtn">🖼 foto dentro</button>
+        </div>
+        <p class="microhelp">"mover quadro" arrasta a moldura toda pelo fundo. "foto dentro" arrasta a imagem <i>dentro</i> da moldura (recorte/enquadramento).</p>
+        <label class="field">Zoom da foto no quadro <b id="imgZoomVal">100%</b></label>
+        <input type="range" id="imgZoom" min="100" max="300" value="100">
+        <button class="btn secondary small" id="centerContentBtn" style="margin-top:6px;">◎ centralizar foto no quadro</button>
+
+        <label class="field" style="margin-top:16px;">Estilo do carrossel contínuo</label>
+        <div class="row2">
+          <button class="btn secondary small toggle active" id="carouselStyleFullBtn">▧ vira o fundo</button>
+          <button class="btn secondary small toggle" id="carouselStyleOverlayBtn">📎 flutua sobre o fundo</button>
+        </div>
+        <p class="microhelp">"vira o fundo" substitui a pintura pela foto (sangria total). "flutua sobre o fundo" mantém a pintura e bota a foto como uma faixa rasgada por cima.</p>
+
+        <label class="field" style="margin-top:14px;">Nº de folhas do carrossel</label>
+        <div class="row2">
+          <input type="number" id="carouselCount" min="2" max="6" value="3">
+          <button class="btn secondary small" id="extendCarouselBtn" style="margin:0;">▦ estender em carrossel</button>
+        </div>
+        <p class="microhelp">transforma a foto selecionada num carrossel contínuo de fundo.</p>
+      </div>
+
+      <div id="continuousControls" style="display:none;">
+        <p class="microhelp">esta foto faz parte de um fundo contínuo.</p>
+        <label class="field">Zoom do carrossel <b id="imgZoomValCont">100%</b></label>
+        <input type="range" id="imgZoomCont" min="100" max="300" value="100">
+        <button class="btn secondary small" id="centerContentContBtn" style="margin-top:6px;">◎ centralizar imagem do carrossel</button>
+        <div id="bandHeightRow" style="display:none;">
+          <label class="field" style="margin-top:14px;">Altura da faixa <b id="bandHeightVal">55%</b></label>
+          <input type="range" id="bandHeight" min="20" max="90" value="55">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>02 · Fundo pintado</h3>
+      <div class="palette-grid" id="paletteGrid"></div>
+      <label class="field">Textura (respingos) <b id="bgIntensityVal">6</b></label>
+      <input type="range" id="bgIntensity" min="1" max="12" value="6">
+      <label class="field">Granulado do fundo <b id="bgGrainVal">30</b></label>
+      <input type="range" id="bgGrain" min="0" max="80" value="30">
+      <button class="btn secondary" id="shuffleBgBtn">↻ nova pintura de fundo (esta folha)</button>
+      <p class="microhelp">a paleta e as texturas valem pro carrossel inteiro; o botão acima só sorteia uma nova pintura pra folha atual.</p>
+    </div>
+
+    <div class="section">
+      <h3>03 · Efeito p&amp;b hachurado</h3>
+      <label class="field">Densidade da hachura <b id="hatchVal">5</b></label>
+      <input type="range" id="hatchSpacing" min="3" max="12" value="5">
+      <label class="field">Contraste <b id="contrastVal">1.3</b></label>
+      <input type="range" id="contrast" min="80" max="220" value="130">
+      <label class="field">Brilho <b id="brightVal">0</b></label>
+      <input type="range" id="brightness" min="-40" max="40" value="0">
+      <label class="field">Granulado da foto <b id="grainVal">18</b></label>
+      <input type="range" id="grain" min="0" max="60" value="18">
+      <label class="field">Franja cromática (ciano/laranja) <b id="fringeVal">3</b></label>
+      <input type="range" id="fringe" min="0" max="10" value="3">
+    </div>
+
+    <div class="section">
+      <h3>04 · Moldura de papel (fotos recortadas)</h3>
+      <div class="row3">
+        <button class="presetBtn" data-ratio="1">1:1</button>
+        <button class="presetBtn active" data-ratio="0.8">4:5</button>
+        <button class="presetBtn" data-ratio="0.5625">9:16</button>
+        <button class="presetBtn" data-ratio="1.333">4:3</button>
+      </div>
+      <label class="field">Largura do quadro <b id="frameWVal">480</b></label>
+      <input type="range" id="frameW" min="200" max="800" value="480">
+      <label class="field">Altura do quadro <b id="frameHVal">600</b></label>
+      <input type="range" id="frameH" min="200" max="800" value="600">
+      <label class="field">Serrilhado das bordas <b id="jagVal">10</b></label>
+      <input type="range" id="jag" min="0" max="26" value="10">
+      <label class="field">Rotação no fundo <b id="rotVal">-4°</b></label>
+      <input type="range" id="cutRotation" min="-25" max="25" value="-4">
+      <label class="field">Tamanho no fundo <b id="scaleVal">100%</b></label>
+      <input type="range" id="cutScale" min="40" max="140" value="100">
+    </div>
+
+    <div class="section">
+      <h3>05 · Frases recortadas</h3>
+      <textarea id="stickerText" rows="2" placeholder="digite uma frase... (Enter quebra linha)"></textarea>
+      <select id="stickerFontSelect"></select>
+      <div class="checkRow">
+        <input type="checkbox" id="stickerUppercase" checked>
+        <label for="stickerUppercase">caixa alta</label>
+      </div>
+      <div class="checkRow">
+        <input type="checkbox" id="stickerBox" checked>
+        <label for="stickerBox">mostrar caixa</label>
+      </div>
+      <label class="field">Alinhamento do texto</label>
+      <select id="stickerAlign">
+        <option value="left">esquerda</option>
+        <option value="center">centralizado</option>
+        <option value="right">direita</option>
+        <option value="justify">justificado</option>
+      </select>
+      <div class="colorpicks" id="colorPicks"></div>
+      <label class="field" style="margin-top:2px;">cor personalizada</label>
+      <input type="color" id="stickerColorCustom" value="#bfe9e6" style="width:100%;height:32px;border:1px solid var(--line);border-radius:3px;background:var(--panel2);padding:2px;cursor:pointer;">
+      <div class="row2">
+        <button class="btn" id="addStickerBtn">+ adicionar frase</button>
+        <button class="btn secondary" id="newStickerBtn" style="display:none;">+ nova frase</button>
+      </div>
+      <p class="microhelp">clique numa frase na lista abaixo pra editar o texto, a cor, a fonte ou a rotação dela. as frases valem só para a folha atual.</p>
+      <button class="btn secondary small" id="uploadFontTrigger" style="margin-top:10px;">⇪ enviar fonte própria (.ttf/.otf/.woff)</button>
+      <input type="file" id="fontFileInput" accept=".ttf,.otf,.woff,.woff2">
+      <p class="microhelp" id="fontStatus">nenhuma fonte personalizada enviada ainda.</p>
+      <div class="stickerList" id="stickerList"></div>
+      <label class="field" id="rotRowSticker" style="display:none;">Rotação da frase selecionada <b id="stickerRotVal">0°</b></label>
+      <input type="range" id="stickerRot" min="-25" max="25" value="0" style="display:none;">
+    </div>
+
+    <div class="section">
+      <h3>06 · Giz (rabiscar)</h3>
+      <button class="btn secondary toggle" id="drawModeBtn">✎ ativar giz</button>
+      <p class="microhelp">com o giz ligado, arraste sobre a colagem para rabiscar.</p>
+      <div class="colorpicks" id="scribbleColorPicks"></div>
+      <label class="field" style="margin-top:2px;">cor personalizada</label>
+      <input type="color" id="scribbleColorCustom" value="#fdf9ee" style="width:100%;height:32px;border:1px solid var(--line);border-radius:3px;background:var(--panel2);padding:2px;cursor:pointer;">
+      <label class="field">Grossura do giz <b id="scribbleThickVal">14</b></label>
+      <input type="range" id="scribbleThick" min="4" max="40" value="14">
+      <div class="row3" style="margin-top:8px;">
+        <button class="btn secondary small" id="undoScribbleBtn" title="Ctrl+Z">↩ desfazer</button>
+        <button class="btn secondary small" id="redoScribbleBtn" title="Ctrl+Y">↪ refazer</button>
+        <button class="btn secondary small" id="clearScribbleBtn">✕ limpar</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>07 · Folhas</h3>
+      <div class="row2">
+        <button class="btn secondary small" id="addSheetBtn">+ nova folha</button>
+        <button class="btn secondary small" id="deleteSheetBtn">✕ excluir folha</button>
+      </div>
+      <p class="microhelp">use as miniaturas acima da tela pra navegar entre as folhas do carrossel.</p>
+    </div>
+
+    <div class="section">
+      <h3>08 · Modo mural (folhas lado a lado)</h3>
+      <button class="btn secondary toggle" id="muralModeBtn">🖼 ativar modo mural</button>
+      <p class="microhelp">no modo mural, você pode arrastar qualquer foto recortada livremente através da junção entre as folhas!</p>
+      <div id="muralUploadRow" style="display:none;">
+        <button class="uploadBtn" id="muralUploadTrigger">+ soltar foto de fundo no mural</button>
+        <input type="file" id="muralFileInput" accept="image/*,.heic,.heif,image/heic,image/heif">
+      </div>
+      <div id="muralGroupControls" style="display:none;">
+        <p class="microhelp">ajuste o fundo contínuo do mural.</p>
+        <label class="field">Nº de folhas que ela cobre <b id="muralSpanVal">2</b></label>
+        <div class="row2">
+          <button class="btn secondary small" id="muralSpanMinus">− cobrir menos</button>
+          <button class="btn secondary small" id="muralSpanPlus">+ cobrir mais</button>
+        </div>
+        <label class="field" style="margin-top:12px;">Posição no mural</label>
+        <div class="row2">
+          <button class="btn secondary small" id="muralShiftLeft">◀ mover p/ folha anterior</button>
+          <button class="btn secondary small" id="muralShiftRight">mover p/ folha seguinte ▶</button>
+        </div>
+        <label class="field" style="margin-top:14px;">Estilo</label>
+        <div class="row2">
+          <button class="btn secondary small toggle active" id="muralStyleFullBtn">▧ vira o fundo</button>
+          <button class="btn secondary small toggle" id="muralStyleOverlayBtn">📎 flutua sobre o fundo</button>
+        </div>
+        <label class="field" style="margin-top:12px;">Zoom <b id="muralZoomVal">100%</b></label>
+        <input type="range" id="muralZoom" min="100" max="300" value="100">
+        <div id="muralBandHeightRow" style="display:none;">
+          <label class="field" style="margin-top:10px;">Altura da faixa <b id="muralBandHeightVal">55%</b></label>
+          <input type="range" id="muralBandHeight" min="20" max="90" value="55">
+        </div>
+        <button class="btn secondary small" id="muralCenterBtn" style="margin-top:10px;">◎ centralizar imagem</button>
+        <button class="btn secondary small" id="muralRemoveBtn" style="margin-top:6px;">✕ remover foto de fundo</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>09 · Exportar</h3>
+      <button class="btn" id="downloadBtn">↓ baixar folha atual (PNG)</button>
+      <button class="btn secondary" id="downloadAllBtn">↓ baixar todas as folhas (PNG)</button>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div id="normalStage" style="display:flex; flex-direction:column; align-items:center; gap:10px; width:100%;">
+      <div class="sheetTabsWrap" id="sheetTabsWrap"></div>
+      <div id="canvasWrap">
+        <canvas id="finalCanvas" width="1080" height="1350"></canvas>
+      </div>
+      <p class="empty-state" id="emptyState">envie uma foto para começar<br>↖ painel à esquerda</p>
+      <p class="hint">arraste o quadro, as frases ou a imagem para reposicionar</p>
+    </div>
+    <div id="muralStage" style="display:none;">
+      <div class="muralStripWrap"><div class="muralStrip" id="muralStrip"></div></div>
+      <p class="hint">arraste as fotos recortadas diretamente no mural sobre as divisões das folhas!</p>
+    </div>
+  </main>
+
+</div>
+
+<script src="js/01-setup-paletas-fontes.js"></script>
+<script src="js/02-utils-estado.js"></script>
+<script src="js/03-render-pipeline.js"></script>
+<script src="js/04-folhas-upload-ui.js"></script>
+<script src="js/05-modo-mural.js"></script>
+<script src="js/06-controles-ui.js"></script>
+<script src="js/07-interacao-download.js"></script>
+<script src="js/08-init.js"></script>
+</body>
+</html>
