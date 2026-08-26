@@ -59,12 +59,6 @@ python3 -m http.server 8000
 
 Não há build nem dependências empacotadas no projeto. A única exceção: ao enviar uma foto `.heic`/`.heif`, o app carrega sob demanda a biblioteca [heic2any](https://github.com/alexcorvi/heic2any) via CDN (`cdn.jsdelivr.net`) pra converter a foto pra JPEG. Isso só acontece nesse upload específico e exige conexão com a internet; todo o resto funciona 100% offline depois que a página carrega.
 
-## Publicando no GitHub Pages
-
-1. Suba este repositório no GitHub.
-2. Em *Settings → Pages*, selecione a branch principal e a pasta raiz (`/`).
-3. O app fica disponível em `https://<usuario>.github.io/<repo>/`.
-
 ## Licença
 
 Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.

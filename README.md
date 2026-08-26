@@ -59,11 +59,6 @@ python3 -m http.server 8000
 
 There's no build step and no bundled dependencies. The one exception: if you upload a `.heic`/`.heif` photo, the app lazily loads [heic2any](https://github.com/alexcorvi/heic2any) from a CDN (`cdn.jsdelivr.net`) at that moment to convert it to JPEG. This only happens on HEIC/HEIF uploads and requires an internet connection; every other feature works fully offline once the page is loaded.
 
-## Publishing to GitHub Pages
-
-1. Push this repository to GitHub.
-2. Under *Settings → Pages*, select the main branch and the root folder (`/`).
-3. The app will be available at `https://<username>.github.io/<repo>/`.
 
 ## License
 
