@@ -85,7 +85,7 @@
     ()=>{ reprocessCutoutPhotosOfSheet(currentSheet()); reprocessAllContinuousGroups(); renderMain(); },
     ()=>{ reprocessAllCutoutPhotos(); renderAll(); });
   bindSlider('jag','jagVal','jag', v=>v,
-    ()=>{ reprocessCutoutPhotosOfSheet(currentSheet()); renderMain(); },
+    ()=>{ reprocessCutoutPhotosOfSheet(currentSheet()); reprocessAllContinuousGroups(); renderMain(); },
     ()=>{ reprocessAllCutoutPhotos(); renderAll(); });
   bindSlider('bgIntensity','bgIntensityVal','bgIntensity', v=>v,
     ()=>{ regenerateBackgroundFor(currentSheet(), false); renderMain(); },

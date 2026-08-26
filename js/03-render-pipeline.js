@@ -248,6 +248,13 @@
     p.baseW = bw; p.baseH = bh;
   }
 
+  function reprocessCutoutPhotosOfSheet(sheet){
+    sheet.photos.forEach(p=>{ if(p.kind==='cutout') processCutoutPhoto(p); });
+  }
+  function reprocessAllCutoutPhotos(){
+    getAllCutoutPhotos().forEach(p=>processCutoutPhoto(p));
+  }
+
   // ---------------- continuous carousel background processing ----------------
   function computeContinuousDraw(group){
     const totalW = W * group.count;

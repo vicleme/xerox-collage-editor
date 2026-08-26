@@ -147,6 +147,11 @@
       const cutoutMode = p.cutoutMode || 'frame';
       document.getElementById('cutoutModeFrameBtn').classList.toggle('active', cutoutMode === 'frame');
       document.getElementById('cutoutModeAlphaBtn').classList.toggle('active', cutoutMode === 'alpha');
+      document.getElementById('cutRotation').value = p.rotation;
+      document.getElementById('rotVal').textContent = p.rotation + '°';
+      const scalePct = Math.round(p.scale*100);
+      document.getElementById('cutScale').value = scalePct;
+      document.getElementById('scaleVal').textContent = scalePct + '%';
     } else {
       cutoutControlsEl.style.display = 'none';
       continuousControlsEl.style.display = 'block';
