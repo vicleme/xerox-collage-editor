@@ -57,6 +57,7 @@
   }
 
   // ---------------- palettes ----------------
+  const BUILTIN_PALETTE_COUNT = 8;
   const palettes = [
     { name:'Solar', base:'#ff5b1f', a1:'#1fb8b0', a2:'#faf4e2' },
     { name:'Uva', base:'#6c2bd9', a1:'#ff3d81', a2:'#f3e9ff' },
@@ -67,46 +68,258 @@
     { name:'Terra', base:'#b5502a', a1:'#3fb5a3', a2:'#f6ead6' },
     { name:'Rosa', base:'#e94f8a', a1:'#3ad6c8', a2:'#fff0f5' },
   ];
-  let paletteIndex = 0;
-  const paletteGrid = document.getElementById('paletteGrid');
-  palettes.forEach((p,i)=>{
-    const el = document.createElement('div');
-    el.className = 'swatch' + (i===0?' active':'');
-    el.style.background = `linear-gradient(135deg, ${p.base} 50%, ${p.a1} 50%)`;
-    el.title = p.name;
-    el.addEventListener('click', ()=>{
-      paletteIndex = i;
-      [...paletteGrid.children].forEach(c=>c.classList.remove('active'));
-      el.classList.add('active');
-      regenerateAllBackgrounds();
-      reprocessAllCutoutPhotos();
-      reprocessAllContinuousGroups();
-      renderAll();
-    });
-    paletteGrid.appendChild(el);
+
+  // paletas personalizadas ficam salvas no navegador (localStorage), sobrevivem a reload
+  const CUSTOM_PALETTES_KEY = 'xerox_customPalettes_v1';
+  function loadCustomPalettes(){
+    try{
+      const raw = localStorage.getItem(CUSTOM_PALETTES_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    }catch(e){ return []; }
+  }
+  function saveCustomPalettesToStorage(){
+    try{
+      localStorage.setItem(CUSTOM_PALETTES_KEY, JSON.stringify(palettes.slice(BUILTIN_PALETTE_COUNT)));
+    }catch(e){ /* localStorage indisponível (modo privado, cota etc.) — ignora silenciosamente */ }
+  }
+  loadCustomPalettes().forEach(p=>{
+    if(p && p.base && p.a1 && p.a2) palettes.push({ name: p.name || 'Personalizada', base:p.base, a1:p.a1, a2:p.a2 });
   });
 
+  let paletteIndex = 0;
+  let editingPaletteIndex = null; // null = criando nova; número = editando paleta personalizada existente
+  let previewRAF = null;
+  const paletteGrid = document.getElementById('paletteGrid');
+  const customPaletteForm = document.getElementById('customPaletteForm');
+  const customPaletteBaseInput = document.getElementById('customPaletteBase');
+  const customPaletteA1Input = document.getElementById('customPaletteA1');
+  const customPaletteA2Input = document.getElementById('customPaletteA2');
+  const customPalettePreview = document.getElementById('customPalettePreview');
+  const saveCustomPaletteBtn = document.getElementById('saveCustomPaletteBtn');
+  const cancelCustomPaletteBtn = document.getElementById('cancelCustomPaletteBtn');
+  const customPaletteFormHelp = document.getElementById('customPaletteFormHelp');
+
+  function updateCustomPalettePreview(){
+    customPalettePreview.style.background = `linear-gradient(135deg, ${customPaletteBaseInput.value} 0%, ${customPaletteBaseInput.value} 40%, ${customPaletteA1Input.value} 40%, ${customPaletteA1Input.value} 70%, ${customPaletteA2Input.value} 70%)`;
+  }
+  // aplica de imediato as 3 cores em edição como pré-visualização no canvas de verdade
+  // (é isso que importa pra saber como vai ficar — o quadradinho ao lado é só um resumo rápido)
+  function applyPalettePreviewNow(){
+    previewPaletteOverride = {
+      base: customPaletteBaseInput.value,
+      a1: customPaletteA1Input.value,
+      a2: customPaletteA2Input.value
+    };
+    regenerateAllBackgrounds();
+    reprocessAllCutoutPhotos();
+    reprocessAllContinuousGroups();
+    renderAll();
+  }
+  // enquanto o usuário arrasta o seletor de cor, o evento 'input' dispara muitas vezes;
+  // agrupamos numa única atualização por frame pra não travar
+  function schedulePalettePreviewUpdate(){
+    if(previewRAF) return;
+    previewRAF = requestAnimationFrame(()=>{ previewRAF = null; applyPalettePreviewNow(); });
+  }
+  [customPaletteBaseInput, customPaletteA1Input, customPaletteA2Input].forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      updateCustomPalettePreview();
+      schedulePalettePreviewUpdate();
+    });
+  });
+  updateCustomPalettePreview();
+
+  function closeCustomPaletteForm(){
+    previewPaletteOverride = null;
+    editingPaletteIndex = null;
+    customPaletteForm.classList.remove('open');
+    regenerateAllBackgrounds();
+    reprocessAllCutoutPhotos();
+    reprocessAllContinuousGroups();
+    renderAll();
+  }
+
+  function openCustomPaletteForm(editIndex){
+    editingPaletteIndex = editIndex;
+    // ao criar uma nova, parte da paleta atualmente selecionada em vez de cores soltas
+    const src = editIndex !== null ? palettes[editIndex] : palettes[paletteIndex];
+    customPaletteBaseInput.value = src.base;
+    customPaletteA1Input.value = src.a1;
+    customPaletteA2Input.value = src.a2;
+    if(editIndex !== null){
+      saveCustomPaletteBtn.textContent = 'salvar alterações';
+      customPaletteFormHelp.textContent = 'editando essa paleta — o canvas já mostra a prévia ao vivo. as mudanças substituem a versão salva.';
+    } else {
+      saveCustomPaletteBtn.textContent = 'salvar paleta';
+      customPaletteFormHelp.textContent = 'base / destaque 1 / destaque 2 — o canvas já mostra a prévia ao vivo. clique em salvar quando gostar do resultado.';
+    }
+    updateCustomPalettePreview();
+    customPaletteForm.classList.add('open');
+    applyPalettePreviewNow();
+  }
+
+  function renderPaletteGrid(){
+    paletteGrid.innerHTML = '';
+    palettes.forEach((p,i)=>{
+      const el = document.createElement('div');
+      el.className = 'swatch' + (i===paletteIndex?' active':'');
+      el.style.background = `linear-gradient(135deg, ${p.base} 50%, ${p.a1} 50%)`;
+      el.title = p.name;
+      el.addEventListener('click', ()=>{
+        paletteIndex = i;
+        previewPaletteOverride = null;
+        editingPaletteIndex = null;
+        customPaletteForm.classList.remove('open');
+        [...paletteGrid.children].forEach(c=>c.classList.remove('active'));
+        el.classList.add('active');
+        regenerateAllBackgrounds();
+        reprocessAllCutoutPhotos();
+        reprocessAllContinuousGroups();
+        renderAll();
+      });
+      if(i >= BUILTIN_PALETTE_COUNT){
+        const edit = document.createElement('div');
+        edit.className = 'swatch-edit';
+        edit.textContent = '✎';
+        edit.title = 'editar esta paleta';
+        edit.addEventListener('click', (ev)=>{
+          ev.stopPropagation();
+          openCustomPaletteForm(i);
+        });
+        el.appendChild(edit);
+        const del = document.createElement('div');
+        del.className = 'swatch-del';
+        del.textContent = '×';
+        del.title = 'apagar esta paleta';
+        del.addEventListener('click', (ev)=>{
+          ev.stopPropagation();
+          palettes.splice(i,1);
+          saveCustomPalettesToStorage();
+          if(paletteIndex === i) paletteIndex = 0;
+          else if(paletteIndex > i) paletteIndex -= 1;
+          if(editingPaletteIndex === i){ previewPaletteOverride = null; editingPaletteIndex = null; customPaletteForm.classList.remove('open'); }
+          renderPaletteGrid();
+          regenerateAllBackgrounds();
+          reprocessAllCutoutPhotos();
+          reprocessAllContinuousGroups();
+          renderAll();
+        });
+        el.appendChild(del);
+      }
+      paletteGrid.appendChild(el);
+    });
+    const addTile = document.createElement('div');
+    addTile.className = 'swatch swatch-add';
+    addTile.textContent = '+';
+    addTile.title = 'criar paleta personalizada';
+    addTile.addEventListener('click', ()=>{
+      if(customPaletteForm.classList.contains('open') && editingPaletteIndex === null){
+        closeCustomPaletteForm();
+      } else {
+        openCustomPaletteForm(null);
+      }
+    });
+    paletteGrid.appendChild(addTile);
+  }
+  renderPaletteGrid();
+
+  cancelCustomPaletteBtn.addEventListener('click', closeCustomPaletteForm);
+
+  saveCustomPaletteBtn.addEventListener('click', ()=>{
+    const base = customPaletteBaseInput.value;
+    const a1 = customPaletteA1Input.value;
+    const a2 = customPaletteA2Input.value;
+    if(editingPaletteIndex !== null){
+      const p = palettes[editingPaletteIndex];
+      p.base = base; p.a1 = a1; p.a2 = a2;
+      saveCustomPalettesToStorage();
+    } else {
+      palettes.push({ name:'Personalizada', base, a1, a2 });
+      saveCustomPalettesToStorage();
+      paletteIndex = palettes.length - 1;
+    }
+    previewPaletteOverride = null;
+    editingPaletteIndex = null;
+    customPaletteForm.classList.remove('open');
+    regenerateAllBackgrounds();
+    reprocessAllCutoutPhotos();
+    reprocessAllContinuousGroups();
+    renderAll();
+    renderPaletteGrid();
+  });
+
+  const BUILTIN_STICKER_COLOR_COUNT = 4;
   const stickerColors = [
     { name:'ciano', bg:'#bfe9e6', fg:'#161311' },
     { name:'mostarda', bg:'#e7b84b', fg:'#161311' },
     { name:'creme', bg:'#faf4e2', fg:'#161311' },
     { name:'preto', bg:'#1c1917', fg:'#faf4e2' },
   ];
+
+  // cores personalizadas da caixa de texto (frases recortadas) — salvas no navegador
+  const CUSTOM_STICKER_COLORS_KEY = 'xerox_customStickerColors_v1';
+  function loadCustomStickerColors(){
+    try{
+      const raw = localStorage.getItem(CUSTOM_STICKER_COLORS_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    }catch(e){ return []; }
+  }
+  function saveCustomStickerColorsToStorage(){
+    try{
+      const customs = stickerColors.slice(BUILTIN_STICKER_COLOR_COUNT).map(c=>c.bg);
+      localStorage.setItem(CUSTOM_STICKER_COLORS_KEY, JSON.stringify(customs));
+    }catch(e){ /* localStorage indisponível — ignora silenciosamente */ }
+  }
+  // nota: `luminance` só é definida no script seguinte (02-utils-estado.js); como este
+  // trecho roda de imediato (antes dele carregar), usamos um cálculo local equivalente
+  function _luminanceLocal(hex){
+    const h = hex.replace('#','');
+    const n = parseInt(h,16);
+    const r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+    return 0.299*r + 0.587*g + 0.114*b;
+  }
+  loadCustomStickerColors().forEach(bg=>{
+    if(typeof bg === 'string') stickerColors.push({ name:'personalizada', bg, fg: _luminanceLocal(bg) > 140 ? '#161311' : '#faf4e2' });
+  });
+
   let currentStickerColor = 0;
   let currentStickerCustomColor = '#bfe9e6';
   const colorPicks = document.getElementById('colorPicks');
-  stickerColors.forEach((c,i)=>{
-    const el = document.createElement('div');
-    el.className='colorpick'+(i===0?' active':'');
-    el.style.background=c.bg;
-    el.addEventListener('click', ()=>{
-      currentStickerColor=i;
-      [...colorPicks.children].forEach(x=>x.classList.remove('active'));
-      el.classList.add('active');
-      if(selectedSticker){ selectedSticker.colorIdx=i; renderMain(); }
+
+  function renderColorPicks(){
+    colorPicks.innerHTML = '';
+    stickerColors.forEach((c,i)=>{
+      const el = document.createElement('div');
+      el.className='colorpick'+(i===currentStickerColor?' active':'');
+      el.style.background=c.bg;
+      el.addEventListener('click', ()=>{
+        currentStickerColor=i;
+        [...colorPicks.children].forEach(x=>x.classList.remove('active'));
+        el.classList.add('active');
+        if(selectedSticker){ selectedSticker.colorIdx=i; renderMain(); }
+      });
+      if(i >= BUILTIN_STICKER_COLOR_COUNT){
+        const del = document.createElement('div');
+        del.className = 'colorpick-del';
+        del.textContent = '×';
+        del.title = 'apagar esta cor';
+        del.addEventListener('click', (ev)=>{
+          ev.stopPropagation();
+          stickerColors.splice(i,1);
+          saveCustomStickerColorsToStorage();
+          if(currentStickerColor === i) currentStickerColor = 0;
+          else if(currentStickerColor > i) currentStickerColor -= 1;
+          renderColorPicks();
+        });
+        el.appendChild(del);
+      }
+      colorPicks.appendChild(el);
     });
-    colorPicks.appendChild(el);
-  });
+  }
+  renderColorPicks();
+
   const stickerColorCustomInput = document.getElementById('stickerColorCustom');
   stickerColorCustomInput.addEventListener('input', (e)=>{
     currentStickerColor = -1;
@@ -118,6 +331,14 @@
       selectedSticker.customFg = luminance(currentStickerCustomColor) > 140 ? '#161311' : '#faf4e2';
       renderMain();
     }
+  });
+  document.getElementById('saveCustomStickerColorBtn').addEventListener('click', ()=>{
+    const bg = currentStickerCustomColor;
+    stickerColors.push({ name:'personalizada', bg, fg: luminance(bg) > 140 ? '#161311' : '#faf4e2' });
+    saveCustomStickerColorsToStorage();
+    currentStickerColor = stickerColors.length - 1;
+    renderColorPicks();
+    if(selectedSticker){ selectedSticker.colorIdx = currentStickerColor; renderMain(); }
   });
 
   // ---------------- fonts ----------------

@@ -89,9 +89,51 @@
     font-family:inherit; font-size:12px; padding:8px; border-radius:3px;
   }
   .checkRow{ display:flex; align-items:center; gap:7px; font-size:11px; color:#c9c0b6; margin:8px 0; }
-  .colorpicks{display:flex; gap:6px; margin:8px 0;}
-  .colorpick{ width:28px;height:28px;border-radius:4px;cursor:pointer;border:2px solid transparent; }
+  .colorpicks{display:flex; gap:6px; margin:8px 0; flex-wrap:wrap;}
+  .colorpick{ width:28px;height:28px;border-radius:4px;cursor:pointer;border:2px solid transparent; position:relative; }
   .colorpick.active{border-color:var(--accent2);}
+  .swatch{ position:relative; }
+  .swatch-del, .colorpick-del{
+    position:absolute; top:-6px; right:-6px; width:16px; height:16px; border-radius:50%;
+    background:var(--panel); color:var(--paper); border:1px solid var(--line);
+    font-size:10px; line-height:14px; text-align:center; cursor:pointer; display:none;
+  }
+  .swatch:hover .swatch-del, .colorpick:hover .colorpick-del{ display:block; }
+  .swatch-add, .colorpick-add{
+    display:flex; align-items:center; justify-content:center;
+    border:2px dashed var(--line); border-radius:4px; cursor:pointer;
+    color:var(--paper); font-size:16px; background:var(--panel2);
+  }
+  .swatch-add{ height:38px; }
+  .colorpick-add{ width:28px; height:28px; }
+  .swatch-add:hover, .colorpick-add:hover{ border-color:var(--accent2); color:var(--accent2); }
+  .custom-palette-form{
+    display:none; gap:6px; margin:8px 0; align-items:center; flex-wrap:wrap;
+  }
+  .custom-palette-form.open{ display:flex; }
+  .custom-palette-form input[type=color]{
+    width:32px; height:32px; border:1px solid var(--line); border-radius:3px; background:var(--panel2); padding:2px; cursor:pointer;
+  }
+  .custom-palette-form .microhelp{ width:100%; margin:2px 0 0; }
+  .custom-palette-preview{
+    width:32px; height:32px; border-radius:4px; border:1px solid var(--line); flex:0 0 auto;
+  }
+  .swatch-edit{
+    position:absolute; top:-6px; left:-6px; width:16px; height:16px; border-radius:50%;
+    background:var(--panel); color:var(--paper); border:1px solid var(--line);
+    font-size:9px; line-height:14px; text-align:center; cursor:pointer; display:none;
+  }
+  .swatch:hover .swatch-edit{ display:block; }
+  .richToolbar{ display:flex; gap:6px; align-items:center; margin:6px 0; }
+  .fmtBtn{
+    width:32px; height:32px; border-radius:4px; cursor:pointer;
+    background:var(--panel2); color:var(--paper); border:1px solid var(--line);
+    font-family:'Courier New', monospace; font-size:14px;
+  }
+  .fmtBtn:hover{ border-color:var(--accent2); color:var(--accent2); }
+  #fmtColorInput{
+    width:32px; height:32px; border:1px solid var(--line); border-radius:4px; background:var(--panel2); padding:2px; cursor:pointer;
+  }
 
   .stickerList{max-height:150px; overflow-y:auto; margin-top:8px;}
   .stickerRow{

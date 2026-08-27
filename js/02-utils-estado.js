@@ -69,6 +69,15 @@
   let scribbleColor = '#fdf9ee';
   let scribbleThick = 14;
 
+  let currentBoxStyle = 'solid';
+  let currentSkew = 0;
+  let currentTextRot = 0;
+
+  // usado pra mostrar no canvas, em tempo real, o resultado de uma paleta personalizada
+  // sendo criada/editada — antes mesmo de o usuário clicar em salvar
+  let previewPaletteOverride = null;
+  function activePalette(){ return previewPaletteOverride || palettes[paletteIndex]; }
+
   let photoIdCounter = 1;
   let stickerIdCounter = 1;
   let scribbleIdCounter = 1;

@@ -93,6 +93,15 @@
     <div class="section">
       <h3>02 · Fundo pintado</h3>
       <div class="palette-grid" id="paletteGrid"></div>
+      <div class="custom-palette-form" id="customPaletteForm">
+        <input type="color" id="customPaletteBase" value="#ff5b1f" title="cor base">
+        <input type="color" id="customPaletteA1" value="#1fb8b0" title="cor de destaque 1">
+        <input type="color" id="customPaletteA2" value="#faf4e2" title="cor de destaque 2">
+        <div class="custom-palette-preview" id="customPalettePreview" title="pré-visualização"></div>
+        <button class="btn secondary small" id="saveCustomPaletteBtn">salvar paleta</button>
+        <button class="btn secondary small" id="cancelCustomPaletteBtn">cancelar</button>
+        <p class="microhelp" id="customPaletteFormHelp">base / destaque 1 / destaque 2. fica salva no seu navegador.</p>
+      </div>
       <label class="field">Textura (respingos) <b id="bgIntensityVal">6</b></label>
       <input type="range" id="bgIntensity" min="1" max="12" value="6">
       <label class="field">Granulado do fundo <b id="bgGrainVal">30</b></label>
@@ -138,6 +147,13 @@
     <div class="section">
       <h3>05 · Frases recortadas</h3>
       <textarea id="stickerText" rows="2" placeholder="digite uma frase... (Enter quebra linha)"></textarea>
+      <div class="richToolbar" id="richToolbar">
+        <button type="button" class="fmtBtn" id="fmtBoldBtn" title="negrito no trecho selecionado"><b>N</b></button>
+        <button type="button" class="fmtBtn" id="fmtItalicBtn" title="itálico no trecho selecionado"><i>I</i></button>
+        <button type="button" class="fmtBtn" id="fmtUnderlineBtn" title="sublinhado à mão no trecho selecionado"><u>S</u></button>
+        <input type="color" id="fmtColorInput" title="cor do trecho selecionado" value="#ff5a1f">
+      </div>
+      <p class="microhelp">selecione um trecho da frase acima e clique num botão pra aplicar só naquele trecho. dá pra combinar mais de um efeito na mesma seleção.</p>
       <select id="stickerFontSelect"></select>
       <div class="checkRow">
         <input type="checkbox" id="stickerUppercase" checked>
@@ -147,6 +163,11 @@
         <input type="checkbox" id="stickerBox" checked>
         <label for="stickerBox">mostrar caixa</label>
       </div>
+      <label class="field">Estilo da caixa</label>
+      <select id="stickerBoxStyle">
+        <option value="solid">cor sólida</option>
+        <option value="chalk">pintado a giz</option>
+      </select>
       <label class="field">Alinhamento do texto</label>
       <select id="stickerAlign">
         <option value="left">esquerda</option>
@@ -154,9 +175,14 @@
         <option value="right">direita</option>
         <option value="justify">justificado</option>
       </select>
+      <label class="field">Inclinação da fonte <b id="stickerSkewVal">0°</b></label>
+      <input type="range" id="stickerSkew" min="-30" max="30" value="0">
+      <label class="field">Inclinação do texto <b id="stickerTextRotVal">0°</b></label>
+      <input type="range" id="stickerTextRot" min="-90" max="90" value="0">
       <div class="colorpicks" id="colorPicks"></div>
       <label class="field" style="margin-top:2px;">cor personalizada</label>
       <input type="color" id="stickerColorCustom" value="#bfe9e6" style="width:100%;height:32px;border:1px solid var(--line);border-radius:3px;background:var(--panel2);padding:2px;cursor:pointer;">
+      <button class="btn secondary small" id="saveCustomStickerColorBtn" style="margin-top:6px;">☆ salvar essa cor</button>
       <div class="row2">
         <button class="btn" id="addStickerBtn">+ adicionar frase</button>
         <button class="btn secondary" id="newStickerBtn" style="display:none;">+ nova frase</button>

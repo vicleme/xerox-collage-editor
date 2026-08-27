@@ -102,7 +102,57 @@
   const addStickerBtn = document.getElementById('addStickerBtn');
   const newStickerBtn = document.getElementById('newStickerBtn');
   const stickerBoxInput = document.getElementById('stickerBox');
+  const stickerBoxStyleSelect = document.getElementById('stickerBoxStyle');
   const stickerAlignSelect = document.getElementById('stickerAlign');
+  const stickerSkewSlider = document.getElementById('stickerSkew');
+  const stickerTextRotSlider = document.getElementById('stickerTextRot');
+  const fmtBoldBtn = document.getElementById('fmtBoldBtn');
+  const fmtItalicBtn = document.getElementById('fmtItalicBtn');
+  const fmtUnderlineBtn = document.getElementById('fmtUnderlineBtn');
+  const fmtColorInput = document.getElementById('fmtColorInput');
+
+  // envolve (ou remove, se já envolvido) o trecho selecionado no textarea com os marcadores dados
+  function toggleMarkupOnSelection(open, close){
+    const ta = stickerTextArea;
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    if(start === end) return; // nada selecionado — não faz nada
+    const val = ta.value;
+    const before = val.slice(Math.max(0, start-open.length), start);
+    const after = val.slice(end, end+close.length);
+    let newVal, newStart, newEnd;
+    if(before === open && after === close){
+      newVal = val.slice(0, start-open.length) + val.slice(start, end) + val.slice(end+close.length);
+      newStart = start-open.length; newEnd = end-open.length;
+    } else {
+      newVal = val.slice(0, start) + open + val.slice(start, end) + close + val.slice(end);
+      newStart = start+open.length; newEnd = end+open.length;
+    }
+    ta.value = newVal;
+    ta.focus();
+    ta.setSelectionRange(newStart, newEnd);
+  }
+  fmtBoldBtn.addEventListener('click', ()=> toggleMarkupOnSelection('**','**'));
+  fmtItalicBtn.addEventListener('click', ()=> toggleMarkupOnSelection('_','_'));
+  fmtUnderlineBtn.addEventListener('click', ()=> toggleMarkupOnSelection('~~','~~'));
+  fmtColorInput.addEventListener('input', (e)=>{
+    // se a seleção já está envolvida por uma cor, troca por essa nova em vez de aninhar
+    const ta = stickerTextArea;
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    if(start === end) return;
+    const val = ta.value;
+    const openMatch = val.slice(0, start).match(/\[\[#[0-9a-fA-F]{6}\]\]$/);
+    const afterIsClose = val.slice(end, end+6) === '[[/c]]';
+    const newColorTag = `[[${e.target.value}]]`;
+    if(openMatch && afterIsClose){
+      const openLen = openMatch[0].length;
+      ta.value = val.slice(0, start-openLen) + newColorTag + val.slice(start, end) + '[[/c]]' + val.slice(end+6);
+      ta.focus();
+      const newStart = start - openLen + newColorTag.length;
+      ta.setSelectionRange(newStart, newStart + (end-start));
+    } else {
+      toggleMarkupOnSelection(newColorTag, '[[/c]]');
+    }
+  });
 
   function refreshStickerList(){
     stickerListEl.innerHTML = '';
@@ -110,7 +160,7 @@
       const row = document.createElement('div');
       row.className = 'stickerRow' + (s===selectedSticker ? ' selected' : '');
       const span = document.createElement('span');
-      span.textContent = s.text.replace(/\n/g, ' / ');
+      span.textContent = s.text.replace(/\n/g, ' / ').replace(/\*\*|~~|_|\[\[#[0-9a-fA-F]{6}\]\]|\[\[\/c\]\]/g, '');
       const del = document.createElement('button');
       del.textContent = '✕';
       del.addEventListener('click', (ev)=>{
@@ -147,7 +197,12 @@
       currentFontId = s.fontId; fontSelect.value = s.fontId;
       currentUppercase = s.uppercase; document.getElementById('stickerUppercase').checked = s.uppercase;
       stickerBoxInput.checked = s.box !== false;
+      currentBoxStyle = s.boxStyle || 'solid'; stickerBoxStyleSelect.value = currentBoxStyle;
       stickerAlignSelect.value = s.align || 'left';
+      currentSkew = s.skew || 0; stickerSkewSlider.value = currentSkew;
+      document.getElementById('stickerSkewVal').textContent = Math.round(currentSkew)+'°';
+      currentTextRot = s.textRot || 0; stickerTextRotSlider.value = currentTextRot;
+      document.getElementById('stickerTextRotVal').textContent = Math.round(currentTextRot)+'°';
       stickerTextArea.value = s.text;
       addStickerBtn.textContent = '✓ salvar alterações';
       newStickerBtn.style.display = 'block';
@@ -156,7 +211,12 @@
       stickerRotSlider.style.display='none';
       stickerTextArea.value = '';
       stickerBoxInput.checked = true;
+      stickerBoxStyleSelect.value = currentBoxStyle = 'solid';
       stickerAlignSelect.value = 'left';
+      stickerSkewSlider.value = currentSkew = 0;
+      document.getElementById('stickerSkewVal').textContent = '0°';
+      stickerTextRotSlider.value = currentTextRot = 0;
+      document.getElementById('stickerTextRotVal').textContent = '0°';
       addStickerBtn.textContent = '+ adicionar frase';
       newStickerBtn.style.display = 'none';
     }
@@ -173,9 +233,29 @@
     selectedSticker.box = e.target.checked;
     renderMain();
   });
+  stickerBoxStyleSelect.addEventListener('change', (e)=>{
+    currentBoxStyle = e.target.value;
+    if(!selectedSticker) return;
+    selectedSticker.boxStyle = currentBoxStyle;
+    renderMain();
+  });
   stickerAlignSelect.addEventListener('change', (e)=>{
     if(!selectedSticker) return;
     selectedSticker.align = e.target.value;
+    renderMain();
+  });
+  stickerSkewSlider.addEventListener('input', (e)=>{
+    currentSkew = parseFloat(e.target.value);
+    document.getElementById('stickerSkewVal').textContent = e.target.value+'°';
+    if(!selectedSticker) return;
+    selectedSticker.skew = currentSkew;
+    renderMain();
+  });
+  stickerTextRotSlider.addEventListener('input', (e)=>{
+    currentTextRot = parseFloat(e.target.value);
+    document.getElementById('stickerTextRotVal').textContent = e.target.value+'°';
+    if(!selectedSticker) return;
+    selectedSticker.textRot = currentTextRot;
     renderMain();
   });
   newStickerBtn.addEventListener('click', ()=>{ selectSticker(null); stickerTextArea.focus(); });
@@ -203,7 +283,10 @@
       fontId: currentFontId,
       uppercase: currentUppercase,
       box: stickerBoxInput.checked,
-      align: stickerAlignSelect.value
+      boxStyle: currentBoxStyle,
+      align: stickerAlignSelect.value,
+      skew: currentSkew,
+      textRot: currentTextRot
     };
     sheet.stickers.push(s);
     selectSticker(s);

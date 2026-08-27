@@ -4,7 +4,7 @@
 
   // ---------------- shared hatch/paper pipeline ----------------
   function buildHatchedPaper(src, bw, bh){
-    const pal = palettes[paletteIndex];
+    const pal = activePalette();
     const sctx = src.getContext('2d');
     const imgData = sctx.getImageData(0,0,bw,bh);
 
@@ -140,7 +140,7 @@
   }
 
   function buildAlphaCutout(p, bw, bh, margin){
-    const pal = palettes[paletteIndex];
+    const pal = activePalette();
     const draw = getAlphaImageDrawFor(p);
 
     // Máscara baseada exclusivamente no canal alfa da imagem original.
@@ -191,7 +191,7 @@
   function processCutoutPhoto(p){
     if(!p.sourceImg) return;
     const w = frame.w, h = frame.h;
-    const pal = palettes[paletteIndex];
+    const pal = activePalette();
     const margin = 26;
     const bw = w + margin*2, bh = h + margin*2;
 
@@ -335,7 +335,7 @@
 
   // ---------------- background painting ----------------
   function paintBackground(seed){
-    const pal = palettes[paletteIndex];
+    const pal = activePalette();
     const rng = mulberry32(seed);
     const c = document.createElement('canvas'); c.width=W; c.height=H;
     const bctx = c.getContext('2d');
@@ -384,18 +384,115 @@
 
   // ---------------- sticker rendering ----------------
   function stickerFont(s){ return fontOptions.find(f=>f.id===s.fontId) || fontOptions[0]; }
+
+  // ---------------- rich text markup (negrito/itálico/sublinhado à mão/cor por trecho) ----------------
+  // sintaxe leve aplicada pela barra de ferramentas sobre o texto selecionado:
+  //   **negrito**   _itálico_   ~~sublinhado à mão~~   [[#rrggbb]]cor[[/c]]
+  // os marcadores podem ser combinados/aninhados (ex: **_negrito e itálico_**)
+  function parseFormattedLine(line){
+    const runs = [];
+    let buf = '';
+    let bold = false, italic = false, underline = false;
+    const colorStack = [];
+    function flush(){
+      if(buf.length){
+        runs.push({ text: buf, bold, italic, underline, color: colorStack.length ? colorStack[colorStack.length-1] : null });
+        buf = '';
+      }
+    }
+    let i = 0;
+    while(i < line.length){
+      if(line.startsWith('**', i)){ flush(); bold = !bold; i += 2; continue; }
+      if(line.startsWith('~~', i)){ flush(); underline = !underline; i += 2; continue; }
+      if(line[i] === '_'){ flush(); italic = !italic; i += 1; continue; }
+      const openMatch = /^\[\[#([0-9a-fA-F]{6})\]\]/.exec(line.slice(i));
+      if(openMatch){ flush(); colorStack.push('#'+openMatch[1]); i += openMatch[0].length; continue; }
+      if(line.startsWith('[[/c]]', i)){ flush(); colorStack.pop(); i += 6; continue; }
+      buf += line[i]; i += 1;
+    }
+    flush();
+    return runs.length ? runs : [{ text:'', bold:false, italic:false, underline:false, color:null }];
+  }
+  function runFont(fo, run){
+    const weight = run.bold ? 700 : fo.weight;
+    const style = run.italic ? 'italic ' : '';
+    return `${style}${weight} ${fo.size}px ${fo.family}`;
+  }
+  function measureLineRuns(fo, runs){
+    let width = 0;
+    const measured = runs.map(r=>{
+      ctx.font = runFont(fo, r);
+      const w = ctx.measureText(r.text).width;
+      width += w;
+      return { r, w };
+    });
+    return { width, measured };
+  }
+  // sublinhado com aspecto manuscrito: uma linha levemente ondulada, não reta e uniforme
+  function drawHandUnderline(c, x, y, width, color, seed){
+    if(width <= 0) return;
+    const rng = mulberry32(seed);
+    const segs = Math.max(3, Math.round(width/14));
+    c.save();
+    c.strokeStyle = color;
+    c.lineWidth = 2.1;
+    c.lineCap = 'round';
+    c.lineJoin = 'round';
+    c.beginPath();
+    let prevX = x, prevY = y + (rng()-0.5)*2;
+    c.moveTo(prevX, prevY);
+    for(let i=1;i<=segs;i++){
+      const t = i/segs;
+      const px = x + t*width;
+      const wob = Math.sin(t*Math.PI*(1.6+rng()*0.8)) * 2.1 + (rng()-0.5)*1.3;
+      const py = y + wob;
+      const midX = (prevX+px)/2, midY = (prevY+py)/2;
+      c.quadraticCurveTo(prevX, prevY, midX, midY);
+      prevX = px; prevY = py;
+    }
+    c.lineTo(x+width, y + (rng()-0.5)*2);
+    c.stroke();
+    c.restore();
+  }
   function stickerMetrics(s){
     const fo = stickerFont(s);
     ctx.font = `${fo.weight} ${fo.size}px ${fo.family}`;
     ctx.textBaseline = 'alphabetic';
     const padX = 22, padY = 15;
-    const rawText = s.uppercase ? s.text.toUpperCase() : s.text;
-    const lines = rawText.split('\n');
+    const rawText = s.text;
+    const lines = rawText.split('\n').map(line=>{
+      const runs = parseFormattedLine(line);
+      if(s.uppercase) runs.forEach(r=>{ r.text = r.text.toUpperCase(); });
+      return runs;
+    });
     const lineHeight = fo.size * 1.18;
     let maxW = 0;
-    lines.forEach(l=>{ const lw = ctx.measureText(l).width; if(lw>maxW) maxW = lw; });
+    lines.forEach(runs=>{ const { width } = measureLineRuns(fo, runs); if(width>maxW) maxW = width; });
     const textH = lineHeight*(lines.length-1) + fo.size;
-    return { w: maxW + padX*2, h: textH + padY*2, padX, padY, lines, lineHeight, fo };
+    const skewDeg = s.skew || 0;
+    const skewPad = skewDeg ? Math.abs(Math.tan(skewDeg * Math.PI/180)) * (textH + padY*2) / 2 : 0;
+    return { w: maxW + padX*2 + skewPad*2, h: textH + padY*2, padX: padX + skewPad, padY, lines, lineHeight, fo, skewDeg };
+  }
+  // pinta a caixa como se fosse papel branco riscado de giz por cima, na cor escolhida
+  function paintChalkBox(c, rng, w, h, color){
+    c.fillStyle = '#fdf9ee';
+    c.fillRect(0, 0, w, h);
+    const strokeCount = 9 + Math.floor((w*h)/2400);
+    for(let i=0;i<strokeCount;i++){
+      const cx = rng()*w, cy = rng()*h;
+      const len = w*(0.4 + rng()*0.65);
+      const thick = h*(0.5 + rng()*0.6);
+      const angle = (rng()-0.5)*0.55;
+      chalkStroke(c, rng, cx, cy, len, thick, angle, color);
+    }
+    // uma segunda passada mais fina reforça a cobertura sem virar bloco de cor chapada
+    for(let i=0;i<Math.ceil(strokeCount*0.6);i++){
+      const cx = rng()*w, cy = rng()*h;
+      const len = w*(0.25 + rng()*0.4);
+      const thick = h*(0.3 + rng()*0.35);
+      const angle = (rng()-0.5)*1.4;
+      chalkStroke(c, rng, cx, cy, len, thick, angle, color);
+    }
   }
   function drawSticker(c, s, isCurrentSheet){
     const m = stickerMetrics(s);
@@ -405,41 +502,104 @@
     c.rotate(s.rot * Math.PI/180);
     c.translate(-m.w/2, -m.h/2);
 
+    const jr = mulberry32(Math.floor(s.x*13+s.y*7+s.id*99));
+    const pts = jagPoints(jr, m.w, m.h, 3, 3);
+
     if(s.box !== false){
-      c.fillStyle = col.bg;
-      c.strokeStyle = '#161311';
-      c.lineWidth = 2;
-      const jr = mulberry32(Math.floor(s.x*13+s.y*7+s.id*99));
-      const pts = jagPoints(jr, m.w, m.h, 3, 3);
-      pathFromPoints(c, pts);
-      c.fill();
-      c.stroke();
+      if((s.boxStyle || 'solid') === 'chalk'){
+        const bw = Math.ceil(m.w), bh = Math.ceil(m.h);
+        const cache = s._chalkCache;
+        // a textura de giz é cara de gerar (centenas de traços); ela só depende do
+        // tamanho da caixa e da cor, nunca da posição — então fica em cache num canvas
+        // separado e só é recalculada quando um desses dois muda (arrastar fica leve).
+        if(!cache || cache.w !== bw || cache.h !== bh || cache.color !== col.bg){
+          const off = document.createElement('canvas');
+          off.width = bw; off.height = bh;
+          const octx = off.getContext('2d');
+          const chalkRng = mulberry32(Math.floor(s.id*53 + bw*7 + bh*11));
+          paintChalkBox(octx, chalkRng, bw, bh, col.bg);
+          s._chalkCache = { w: bw, h: bh, color: col.bg, canvas: off };
+        }
+        c.save();
+        pathFromPoints(c, pts);
+        c.clip();
+        c.drawImage(s._chalkCache.canvas, 0, 0, bw, bh, 0, 0, m.w, m.h);
+        c.restore();
+        pathFromPoints(c, pts);
+        c.strokeStyle = '#161311';
+        c.lineWidth = 2;
+        c.stroke();
+      } else {
+        c.fillStyle = col.bg;
+        c.strokeStyle = '#161311';
+        c.lineWidth = 2;
+        pathFromPoints(c, pts);
+        c.fill();
+        c.stroke();
+      }
     }
 
-    c.fillStyle = col.fg;
-    c.font = `${m.fo.weight} ${m.fo.size}px ${m.fo.family}`;
+    c.save();
+    if(s.box !== false){
+      pathFromPoints(c, pts);
+      c.clip();
+    }
+    if(s.textRot){
+      // gira só o texto ao redor do centro da caixa — a caixa em si (já desenhada
+      // acima, com o clip acima) não roda, só o conteúdo escrito dentro dela.
+      c.translate(m.w/2, m.h/2);
+      c.rotate(s.textRot * Math.PI/180);
+      c.translate(-m.w/2, -m.h/2);
+    }
+    if(m.skewDeg){
+      const shear = Math.tan(m.skewDeg * Math.PI/180);
+      c.transform(1, 0, -shear, 1, shear*m.h/2, 0);
+    }
     c.textBaseline = 'alphabetic';
+    c.textAlign = 'left';
     const align = s.align || 'left';
-    c.textAlign = align === 'center' ? 'center' : align === 'right' ? 'right' : 'left';
     const textLeft = m.padX;
-    const textRight = m.w - m.padX;
-    const textCenter = m.w / 2;
-    m.lines.forEach((line, i)=>{
-      const baseline = m.padY + m.fo.size + i*m.lineHeight - 2;
-      if(align === 'center') c.fillText(line, textCenter, baseline);
-      else if(align === 'right') c.fillText(line, textRight, baseline);
-      else if(align === 'justify' && i < m.lines.length-1 && line.trim().split(/\s+/).length > 1){
-        const words = line.trim().split(/\s+/);
-        const widths = words.map(w=>c.measureText(w).width);
-        const available = m.w - m.padX*2;
+    const available = m.w - m.padX*2;
+    m.lines.forEach((runs, li)=>{
+      const baseline = m.padY + m.fo.size + li*m.lineHeight - 2;
+      const { width: lineWidth, measured } = measureLineRuns(m.fo, runs);
+      const isLastLine = li === m.lines.length-1;
+      // divide a linha em "palavras" (podendo cruzar limites de estilo) só pra justificado
+      const words = [];
+      if(align === 'justify'){
+        measured.forEach(({r})=>{
+          r.text.split(/(\s+)/).forEach(part=>{
+            if(!part || /^\s+$/.test(part)) return;
+            words.push({ text: part, bold:r.bold, italic:r.italic, underline:r.underline, color:r.color });
+          });
+        });
+      }
+      if(align === 'justify' && !isLastLine && words.length > 1){
+        const widths = words.map(w=>{ ctx.font = runFont(m.fo, w); return ctx.measureText(w.text).width; });
         const gap = (available - widths.reduce((a,b)=>a+b,0)) / (words.length-1);
         let x = textLeft;
         words.forEach((word, wi)=>{
-          c.fillText(word, x, baseline);
+          c.font = runFont(m.fo, word);
+          c.fillStyle = word.color || col.fg;
+          c.fillText(word.text, x, baseline);
+          if(word.underline) drawHandUnderline(c, x, baseline+3, widths[wi], word.color || col.fg, s.id*97 + li*31 + wi*11);
           x += widths[wi] + gap;
         });
-      } else c.fillText(line, textLeft, baseline);
+      } else {
+        let x;
+        if(align === 'center') x = textLeft + (available - lineWidth)/2;
+        else if(align === 'right') x = textLeft + (available - lineWidth);
+        else x = textLeft;
+        measured.forEach(({r, w}, ri)=>{
+          c.font = runFont(m.fo, r);
+          c.fillStyle = r.color || col.fg;
+          c.fillText(r.text, x, baseline);
+          if(r.underline) drawHandUnderline(c, x, baseline+3, w, r.color || col.fg, s.id*97 + li*31 + ri*11);
+          x += w;
+        });
+      }
     });
+    c.restore();
 
     if(isCurrentSheet && s === selectedSticker){
       c.strokeStyle = '#ff5a1f';
